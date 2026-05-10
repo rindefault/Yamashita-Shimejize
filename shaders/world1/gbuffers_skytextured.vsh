@@ -1,6 +1,7 @@
 #version 120
 
 #define THE_END
+#define YS_LEGACY_VERTEX_PATH
 
 #include "/shader.h"
 

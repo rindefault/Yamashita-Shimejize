@@ -4,19 +4,21 @@
 
 uniform float fogEnd;
 uniform float fogStart;
+uniform float far;
 uniform int fogShape;
 uniform mat4 gbufferModelViewInverse;
-
 varying float fogMix;
-varying vec4 color;
+varying vec4  color;
 
 #include "/common/math.glsl"
-#include "/common/getWorldPosition.vsh"
 #include "/common/getFogMix.vsh"
 
 void main() {
-	gl_Position = ftransform();
+   gl_Position = ftransform();
 
-	color = gl_Color;
-	fogMix = getFogMix(getWorldPosition());
+   color = gl_Color;
+   vec3 worldPos = mat3(gbufferModelViewInverse)
+                 * (gl_ModelViewMatrix * gl_Vertex).xyz
+                 + gbufferModelViewInverse[3].xyz;
+   fogMix = getFogMix(worldPos);
 }

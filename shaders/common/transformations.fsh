@@ -1,5 +1,16 @@
+uniform ivec2 atlasSize;
+
 vec2 screen2uv(vec3 screen) {
    return (0.5*nvec3(gbufferProjection * vec4(screen, 1.0)) + 0.5).st;
+}
+
+vec3 screen2space(vec2 coord, float depth) {
+	vec4 pos = gbufferProjectionInverse * (vec4(coord, depth, 1.0) * 2.0 - 1.0);
+	return pos.xyz/pos.w;
+}
+
+float cdist(vec2 coord) {
+	return clamp(1.0 - max(abs(coord.s-0.5),abs(coord.t-0.5))*2.0, 0.0, 1.0);
 }
 
 vec2 ComputeTexelOffset(vec2 uv, vec4 texelSize) {
@@ -23,10 +34,17 @@ vec2 ComputeTexelOffset(vec2 uv, vec4 texelSize) {
 }
 
 vec2 ComputeTexelOffset(sampler2D tex, vec2 uv) {
-   vec2 texSize = textureSize(tex, 0);
+#if __VERSION__ < 130
+   vec2 texSize = vec2(max(atlasSize, ivec2(1)));
+   if (texSize.x <= 1.0 || texSize.y <= 1.0) return vec2(0.0);
+   vec4 texelSize = vec4(1.0 / texSize.xy, texSize.xy);
+   return ComputeTexelOffset(uv, texelSize);
+#else
+   vec2 texSize = vec2(ivec2(textureSize(tex, 0)));
    vec4 texelSize = vec4(1.0 / texSize.xy, texSize.xy);
 
    return ComputeTexelOffset(uv, texelSize);
+#endif
 }
 
 vec4 TexelSnap(vec4 value, vec2 texelOffset) {

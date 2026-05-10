@@ -2,4 +2,4 @@
 
 #define THE_NETHER
 
-#include "/program/gbuffers_textured_lit.vsh"
+#include "/program/gbuffers_textured_legacy.vsh"

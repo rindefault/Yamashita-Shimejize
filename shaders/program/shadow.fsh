@@ -1,11 +1,17 @@
 uniform sampler2D texture;
 
+#include "/shader.h"
+
 varying vec2 texUV;
 varying float alpha;
+varying float shadowVertY;
 
 void main() {
-   vec4 albedo = texture2DLod(texture, texUV, 0);
+   #if CLOUD_SHADOWS == 0
+      if (shadowVertY > 180.0) discard;
+   #endif
 
+   vec4 albedo = texture2D(texture, texUV);
    albedo.a *= alpha;
 
    if (albedo.a < 0.1) {

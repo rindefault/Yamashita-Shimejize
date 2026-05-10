@@ -63,21 +63,75 @@ vec3 pow2(vec3 x) {
 vec4 pow2(vec4 x) {
     return x * x;
 }
+int min1(int x) {
+    return min(x, 1);
+}
+float min1(float x) {
+    return min(x, 1.0);
+}
 
-float dither(vec2 position, float brightness) {
-  int x = int(mod(position.x, 2.0));
-  int y = int(mod(position.y, 2.0));
-  int index = x + y * 2;
-  float limit = 0.0;
+float pow1_5(float x) { // Faster pow(x, 1.5) approximation (that isn't accurate at all) if x is between 0 and 1
+    return x - x * pow2(1.0 - x); // Thanks to SixthSurge
+}
+vec2 pow1_5(vec2 x) {
+    return x - x * pow2(1.0 - x);
+}
+vec3 pow1_5(vec3 x) {
+    return x - x * pow2(1.0 - x);
+}
+vec4 pow1_5(vec4 x) {
+    return x - x * pow2(1.0 - x);
+}
 
-  if (x < 8) {
-		if (index == 0) limit = 0.12;
-		if (index == 1) limit = 0.75;
-		if (index == 2) limit = 1.00;
-		if (index == 3) limit = 0.50;
-  }
+float sqrt1(float x) {
+    return sqrt(max(x, 0.0));
+}
+vec2 sqrt1(vec2 x) {
+    return sqrt(max(x, vec2(0.0)));
+}
+vec3 sqrt1(vec3 x) {
+    return sqrt(max(x, vec3(0.0)));
+}
+vec4 sqrt1(vec4 x) {
+    return sqrt(max(x, vec4(0.0)));
+}
 
-  return brightness < limit ? 0.6 : 1.0;
+float sqrt2(float x) {
+    x = 1.0 - x;
+    x *= x;
+    x *= x;
+    return 1.0 - x;
+}
+vec2 sqrt2(vec2 x) {
+    x = 1.0 - x;
+    x *= x;
+    x *= x;
+    return 1.0 - x;
+}
+vec3 sqrt2(vec3 x) {
+    x = 1.0 - x;
+    x *= x;
+    x *= x;
+    return 1.0 - x;
+}
+vec4 sqrt2(vec4 x) {
+    x = 1.0 - x;
+    x *= x;
+    x *= x;
+    return 1.0 - x;
+}
+
+float sqrt3(float x) {
+    return pow(max(x, 0.0), 0.3333333333333333);
+}
+vec2 sqrt3(vec2 x) {
+    return pow(max(x, vec2(0.0)), vec2(0.3333333333333333));
+}
+vec3 sqrt3(vec3 x) {
+    return pow(max(x, vec3(0.0)), vec3(0.3333333333333333));
+}
+vec4 sqrt3(vec4 x) {
+    return pow(max(x, vec4(0.0)), vec4(0.3333333333333333));
 }
 
 //Dithering from Jodie
@@ -92,4 +146,24 @@ float bayer4(vec2 a) {
 
 float bayer8(vec2 a) {
 	return bayer4(a * 0.5) * 0.25 + bayer2(a);
+}
+
+float smoothstep1(float x) {
+    return x * x * (3.0 - 2.0 * x);
+}
+vec2 smoothstep1(vec2 x) {
+    return x * x * (3.0 - 2.0 * x);
+}
+vec3 smoothstep1(vec3 x) {
+    return x * x * (3.0 - 2.0 * x);
+}
+vec4 smoothstep1(vec4 x) {
+    return x * x * (3.0 - 2.0 * x);
+}
+
+int max0(int x) {
+    return max(x, 0);
+}
+float max0(float x) {
+    return max(x, 0.0);
 }

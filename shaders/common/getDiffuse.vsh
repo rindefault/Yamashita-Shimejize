@@ -1,7 +1,16 @@
 float getDiffuse(float skyLight) {
-  bool isThin = mc_Entity.x == 10031.0 || mc_Entity.x == 10059.0
+#if defined(IS_GBUFFERS_TEXTURED) || defined(YS_LEGACY_VERTEX_PATH)
+  vec3 shapeNormal = gl_Normal;
+#else
+  vec3 shapeNormal = vaNormal;
+#endif
+  bool isThin = mc_Entity.x == 10031.0 || mc_Entity.x == 10032.0
+             || mc_Entity.x == 10059.0 || mc_Entity.x == 10060.0
+             || mc_Entity.x == 10061.0
              || mc_Entity.x == 10175.0 || mc_Entity.x == 10176.0
-             || (abs(gl_Normal.y) < 0.01 && abs(abs(gl_Normal.x) - abs(gl_Normal.z)) < 0.01);
+             || (abs(shapeNormal.y) < 0.01 && abs(abs(shapeNormal.x) - abs(shapeNormal.z)) < 0.01);
+  float directionalDiffuse = clamp(2.5 * dot(normalize(normal),
+                                              normalize(shadowLightPosition)), -0.3333, 1.0);
 
         //  reduce under water
   return (isEyeInWater == 0 ? 1.0 : 0.5)
@@ -11,7 +20,10 @@ float getDiffuse(float skyLight) {
           * (1.0 - rainStrength)
         //  reduce with sky light
           * rescale(skyLight, 0.3137, 0.6235)
-        //  thin objects have constant diffuse
-          * (isThin ? 0.75 : clamp(2.5*dot(normalize(gl_NormalMatrix * gl_Normal),
-                                           normalize(shadowLightPosition)), -0.3333, 1.0));
+        //  thin objects keep constant diffuse
+#ifdef IS_TERRAIN
+          * (isThin ? 0.75 : directionalDiffuse);
+#else
+          * (isThin ? 0.75 : directionalDiffuse);
+#endif
 }

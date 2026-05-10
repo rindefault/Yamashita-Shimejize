@@ -1,4 +1,4 @@
-#version 330 compatibility
+#version 120
 
 #include "shader.h"
 #include "common/math.glsl"
@@ -13,7 +13,7 @@ uniform mat4 gbufferModelView, gbufferPreviousModelView, gbufferModelViewInverse
 uniform sampler2D colortex0;
 uniform sampler2D depthtex1;
 
-in vec2 texcoord;
+varying vec2 texcoord;
 
 vec3 motionBlur(vec3 color, float z, float dither) {
 	
@@ -38,15 +38,16 @@ vec3 motionBlur(vec3 color, float z, float dither) {
 		previousPosition /= previousPosition.w;
 
 		vec2 velocity = (currentPosition - previousPosition).xy;
-		velocity = velocity / (1.0 + length(velocity)) * 1.6 * 0.02;
+		velocity = velocity / (1.0 + length(velocity)) * 1.6 * 0.01;
 		
 		vec2 coord = texcoord.st - velocity * dither;
 
 		for (int i = 0; i < 5; i++, coord += velocity) {
 			vec2 sampleCoord = clamp(coord, doublePixel, 1.0 - doublePixel);
 			float mask = float(texture2D(depthtex1, sampleCoord).r > 0.56);
-			mblur += texture2DLod(colortex0, sampleCoord, 0.0).rgb * mask;
-			mbwg += mask;
+			vec3 sampleColor = texture2D(colortex0, sampleCoord).rgb;
+			mblur += mix(color, sampleColor, mask);
+			mbwg += 1.0;
 		}
 		mblur /= max(mbwg, 1.0);
 
@@ -57,13 +58,17 @@ vec3 motionBlur(vec3 color, float z, float dither) {
 }
 
 void main() {
-  vec3 color = texture2DLod(colortex0, texcoord, 0.0).rgb;
+  vec3 color = texture2D(colortex0, texcoord).rgb;
 	
-	float z = texture2D(depthtex1, texcoord.st).x;
-	float dither = bayer4(gl_FragCoord.xy / 2) * 16;
+	#if ENABLE_MOTIONBLUR > 0
 
-	color = motionBlur(color, z, dither);
+		float z = texture2D(depthtex1, texcoord.st).x;
+		float dither = bayer4(gl_FragCoord.xy / 2) * 16;
+
+		color = motionBlur(color, z, dither);
+		
+	#endif
 	
 	/*DRAWBUFFERS:0*/
-	gl_FragData[0] = vec4(color, 1.0);
+	gl_FragColor = vec4(color, 1.0);
 }
