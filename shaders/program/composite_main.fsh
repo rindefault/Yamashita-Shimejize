@@ -9,6 +9,9 @@ uniform sampler2D depthtex0;
 uniform sampler2D noisetex;
 uniform sampler2D cloudstex;
 uniform sampler2D colortex2; // hot/glow mask from gbuffers_textured_lit
+#ifdef DISTANT_HORIZONS
+uniform sampler2D dhDepthTex0;
+#endif
 uniform float viewWidth;
 uniform float viewHeight;
 uniform float timeAngle;
@@ -27,6 +30,9 @@ uniform vec3  fogColor;
 uniform vec3  skyColor;
 uniform mat4  gbufferProjectionInverse;
 uniform mat4  gbufferModelViewInverse;
+#ifdef DISTANT_HORIZONS
+uniform mat4  dhProjectionInverse;
+#endif
 #ifdef HAND_DYNAMIC_LIGHTING
 uniform int   heldBlockLightValue;
 #endif
@@ -88,6 +94,22 @@ void resolveSceneViewPos(vec2 uv, out vec3 sceneViewPos, out bool sceneHit) {
   sceneHit = vanillaDepth < 0.9999;
   sceneViewPos = sceneHit ? reconstructViewPos(gbufferProjectionInverse, uv, vanillaDepth)
                           : getSkyViewRay(uv);
+
+  #ifdef DISTANT_HORIZONS
+    float dhDepth = sampleCompositeTexture(dhDepthTex0, uv).r;
+    bool dhHit = dhDepth < 0.999999;
+
+    if (dhHit) {
+      vec3 dhViewPos = reconstructViewPos(dhProjectionInverse, uv, dhDepth);
+      float dhDist = length(dhViewPos);
+      float vanillaDist = sceneHit ? length(sceneViewPos) : 1e20;
+
+      if (dhDist < vanillaDist) {
+        sceneViewPos = dhViewPos;
+        sceneHit = true;
+      }
+    }
+  #endif
 }
 
 // ---------------------------------------------------------------------------
@@ -189,6 +211,15 @@ vec3 getCloudWorldSunDir() {
   return normalize(mat3(gbufferModelViewInverse) * normalize(shadowLightPosition));
 }
 
+vec3 getRainOvercastTarget() {
+  vec3 overcastSky = mix(skyColor, fogColor, 0.45);
+  return mix(overcastSky, vec3(luma(overcastSky)), 0.35);
+}
+
+vec3 applyRainOvercastSky(vec3 sourceColor) {
+  return mix(sourceColor, getRainOvercastTarget(), rainStrength * 0.58);
+}
+
 vec3 getCloudSkyGradientColor(vec3 rayDir) {
   vec3 ray = normalize(rayDir);
   vec3 sunDir = getCloudWorldSunDir();
@@ -203,7 +234,8 @@ vec3 getCloudSkyGradientColor(vec3 rayDir) {
   vec3 fogHaze = mix(skyGradient, fogColor, 0.40 + horizon * 0.24 + downView * 0.12 + rainStrength * 0.10);
   float hazeMix = clamp(0.18 + horizon * 0.54 + downView * 0.10, 0.0, 1.0);
 
-  return mix(airySky, fogHaze, hazeMix);
+  vec3 cloudSky = mix(airySky, fogHaze, hazeMix);
+  return applyRainOvercastSky(cloudSky);
 }
 
 vec3 getCloudFogTarget(vec3 rayDir) {
@@ -377,7 +409,6 @@ void main() {
   vec3 sceneViewPos;
   bool sceneHasGeometry;
   resolveSceneViewPos(shadowTexcoord, sceneViewPos, sceneHasGeometry);
-  bool resolvedSkyPixel = !sceneHasGeometry;
   cloudMaskOut = vec4(0.0);
 
   #if ENHANCED_CLOUDS > 0 && !defined(THE_NETHER) && !defined(THE_END) && !defined(NETHER) && !defined(END)
@@ -513,6 +544,9 @@ void main() {
   float transitionLift = max(morningLift, eveningLift);
   baseCloudCol = mix(baseCloudCol, vec3(0.98, 1.0, 1.04), transitionLift * 0.42);
   baseCloudCol *= 1.0 + 0.12 * transitionLift;
+  float rainCloudFade = smoothstep(0.05, 0.85, rainStrength);
+  vec3 rainBaseCloudCol = mix(getRainOvercastTarget(), fogColor, 0.18) * vec3(1.02, 1.02, 1.04);
+  baseCloudCol = mix(baseCloudCol, rainBaseCloudCol, rainCloudFade * 0.72);
 
   // ---------------------------------------------------------------------------
   // Cloud sky rendering (sky pixels only, depth ≥ 0.9999).
@@ -568,14 +602,6 @@ void main() {
       }
   }
   #endif
-
-    // Rain: blend sky towards dark overcast grey as rain intensifies.
-    // Only on sky pixels (clouds already rendered above, they carry their own colour).
-  if (resolvedSkyPixel && cloudMaskOut.r < 0.5 && rainStrength > 0.01) {
-      vec3 overcastSky = mix(skyColor, fogColor, 0.45);
-      overcastSky = mix(overcastSky, vec3(luma(overcastSky)), 0.35);
-      texColor.rgb = mix(texColor.rgb, overcastSky, rainStrength * 0.58);
-  }
 
   float dither = bayer4(gl_FragCoord.xy * 0.5) / POSTERIZE_STRENGTH;
   color.rgb = clamp(floor(texColor.rgb * POSTERIZE_STRENGTH + dither) / POSTERIZE_STRENGTH, 0.0, 1.0);

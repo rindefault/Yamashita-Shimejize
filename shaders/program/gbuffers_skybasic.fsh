@@ -43,6 +43,11 @@ vec3 nightFogColor = vec3(0.005, 0.002, 0.002);
 vec3 rainSkyColor = vec3(0.5, 0.52, 0.55);
 vec3 rainFogColor = vec3(0.4, 0.43, 0.5);
 
+vec3 getRainOvercastTarget() {
+    vec3 overcastSky = mix(skyColor, fogColor, 0.45);
+    return mix(overcastSky, vec3(luma(overcastSky)), 0.35);
+}
+
 void main() {
     float fog = 0.0; // aurora already has horizonFade; no gl_Fog in core profile
     float dither = bayer4(gl_FragCoord.xy / 2.0);
@@ -80,6 +85,8 @@ void main() {
 			finalColor.rgb += aurora * (1.0 - fog);
 
     #endif
+
+    finalColor.rgb = mix(finalColor.rgb, getRainOvercastTarget(), rainStrength * 0.58);
 
 		/* DRAWBUFFERS:0 */
     gl_FragData[0] = vec4(finalColor.rgb, alpha);

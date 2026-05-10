@@ -8,6 +8,8 @@ uniform float timeBrightness;
 varying vec2 texUV;
 varying vec2 lightUV;
 varying vec4 color;
+varying float weatherDistXZ;
+varying float weatherRelativeY;
 
 void main() {
    vec4 albedo = texture2D(texture, texUV) * color;
@@ -31,6 +33,16 @@ void main() {
    // Keep streaks translucent at all times and avoid opaque "blue bars".
    albedo.a *= WEATHER_OPACITY;
    albedo.a *= mix(0.88, 1.0, day);
+
+   #if ENHANCED_CLOUDS == 0
+      // Vanilla/fallback clouds render before the weather pass. The moving band
+      // comes from the upper edge of the camera-centered rain/snow curtain, so
+      // fade that slice by height relative to the camera, not absolute world Y.
+      float upperCurtain = smoothstep(2.0, 10.5, weatherRelativeY);
+      float farCurtain = smoothstep(24.0, 96.0, weatherDistXZ);
+      float cloudCurtainFade = upperCurtain * farCurtain;
+      albedo.a *= 1.0 - clamp(cloudCurtainFade, 0.0, 0.96);
+   #endif
 
    gl_FragColor = albedo;
 }
